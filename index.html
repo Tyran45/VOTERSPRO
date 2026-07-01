@@ -263,6 +263,15 @@
         <button class="btn btn-primary" onclick="saveOrgName()">💾 Save Name</button>
       </div>
       <div class="card">
+        <div class="card-title">🗳️ Voter App Phase</div>
+        <p style="font-size:0.8rem;color:var(--muted);margin-bottom:12px;">Controls what voters see when they open the app. Switch to Results once voting has closed.</p>
+        <div style="display:flex;gap:10px;margin-bottom:6px;">
+          <button class="btn btn-primary" id="phase-btn-voting" onclick="setPhase('voting')" style="margin-top:0">🗳️ Voting</button>
+          <button class="btn btn-secondary" id="phase-btn-results" onclick="setPhase('results')" style="margin-top:0">📊 Results</button>
+        </div>
+        <div style="font-size:0.78rem;color:var(--muted);margin-top:6px;">Current: <strong id="phase-current-label">—</strong></div>
+      </div>
+      <div class="card">
         <div class="card-title">Voting Deadline</div>
         <div class="field"><label>Deadline (date &amp; time)</label><input id="deadline-input" type="datetime-local"/></div>
         <button class="btn btn-primary" onclick="saveDeadline()">💾 Save Deadline</button>
@@ -335,7 +344,7 @@ async function logEvent(event) {
 
 async function getSettings() {
   const snap = await getDoc(settingsRef);
-  return snap.exists() ? snap.data() : { deadline: '', adminPw: 'admin123', orgName: '', orgId: '' };
+  return snap.exists() ? snap.data() : { deadline: '', adminPw: 'admin123', orgName: '', orgId: '', phase: 'voting' };
 }
 
 async function getCandidates() {
@@ -356,7 +365,7 @@ async function getLog() {
 
 async function initSettings() {
   const snap = await getDoc(settingsRef);
-  if (!snap.exists()) await setDoc(settingsRef, { deadline: '', adminPw: 'admin123', orgName: '', orgId: '' });
+  if (!snap.exists()) await setDoc(settingsRef, { deadline: '', adminPw: 'admin123', orgName: '', orgId: '', phase: 'voting' });
 }
 
 // Group candidates by category/position
@@ -877,8 +886,38 @@ async function renderSettings() {
     }
     if (settings.orgName) document.getElementById('org-name-input').value = settings.orgName;
     if (settings.orgId) document.getElementById('org-id-input').value = settings.orgId;
+    updatePhaseUI(settings.phase || 'voting');
   } catch (e) { console.error('renderSettings:', e); }
 }
+
+function updatePhaseUI(phase) {
+  const votingBtn  = document.getElementById('phase-btn-voting');
+  const resultsBtn = document.getElementById('phase-btn-results');
+  const label       = document.getElementById('phase-current-label');
+  if (!votingBtn || !resultsBtn || !label) return;
+  if (phase === 'results') {
+    votingBtn.className  = 'btn btn-secondary';
+    resultsBtn.className = 'btn btn-primary';
+    label.textContent = 'Results';
+  } else {
+    votingBtn.className  = 'btn btn-primary';
+    resultsBtn.className = 'btn btn-secondary';
+    label.textContent = 'Voting';
+  }
+  votingBtn.style.marginTop = '0';
+  resultsBtn.style.marginTop = '0';
+}
+
+window.setPhase = async function(phase) {
+  setLoading(true);
+  try {
+    await setDoc(settingsRef, { phase }, { merge: true });
+    updatePhaseUI(phase);
+    await logEvent(`Admin switched voter app phase to "${phase}"`);
+    toast(phase === 'results' ? 'Voters now see Results. 📊' : 'Voters now see the Voting page. 🗳️');
+  } catch (e) { toast('Error switching phase.'); console.error(e); }
+  finally { setLoading(false); }
+};
 
 window.saveOrgId = async function() {
   const orgId = document.getElementById('org-id-input').value.trim();
