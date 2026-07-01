@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Voting System — Admin</title>
+<style>
+  :root {
+    --bg: #0a1628; --surface: #112240; --card: #1a2f50; --input: #1e3a5f;
+    --border: #2a4a70; --accent: #00d4aa; --accent2: #4f8ef7; --gold: #fbbf24;
+    --red: #f43f5e; --text: #e2eaf6; --muted: #6b8cae; --radius: 14px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+  .screen { display: none; flex-direction: column; min-height: 100vh; }
+  .screen.active { display: flex; }
+  .topbar { background: var(--surface); padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10; }
+  .topbar-title { font-size: 1rem; font-weight: 700; color: var(--accent); }
+  .content { flex: 1; padding: 20px; max-width: 520px; margin: 0 auto; width: 100%; }
+  .card { background: var(--card); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; border: 1px solid var(--border); }
+  .card-title { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; color: var(--muted); text-transform: uppercase; margin-bottom: 12px; }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 0.72rem; font-weight: 700; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 6px; }
+  .field input, .field select, .field textarea { width: 100%; background: var(--input); border: 1.5px solid var(--border); border-radius: 8px; padding: 11px 14px; color: var(--text); font-size: 0.95rem; outline: none; transition: border-color 0.2s; }
+  .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); }
+  .field textarea { resize: vertical; min-height: 70px; }
+  .field .field-hint { font-size: 0.71rem; color: var(--muted); margin-top: 5px; }
+  .btn { width: 100%; padding: 13px; border: none; border-radius: 10px; font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: opacity 0.15s, transform 0.1s; margin-top: 8px; }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary { background: var(--accent); color: #0a1628; }
+  .btn-secondary { background: var(--input); color: var(--text); border: 1px solid var(--border); }
+  .btn-danger { background: var(--red); color: white; }
+  .btn-sm { width: auto; padding: 7px 14px; font-size: 0.82rem; margin-top: 0; border-radius: 8px; }
+  .login-hero { text-align: center; padding: 40px 20px 20px; }
+  .login-hero .emoji { font-size: 3.5rem; }
+  .login-hero .org { font-size: 0.85rem; color: var(--muted); margin: 6px 0 4px; }
+  .login-hero h1 { font-size: 1.6rem; font-weight: 800; color: var(--text); }
+  .login-hero .tagline { font-size: 0.8rem; color: var(--muted); margin-top: 6px; }
+  .login-tabs { display: flex; background: var(--surface); border-radius: 10px; padding: 4px; margin-bottom: 16px; gap: 4px; }
+  .login-tab { flex: 1; padding: 10px; text-align: center; font-size: 0.83rem; font-weight: 700; color: var(--muted); cursor: pointer; border-radius: 8px; transition: all 0.2s; border: none; background: none; }
+  .login-tab.active { background: var(--accent); color: #0a1628; }
+  .voter-id-box { background: var(--bg); border: 2px solid var(--accent); border-radius: 12px; padding: 20px; text-align: center; margin: 16px 0; }
+  .voter-id-box .label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+  .voter-id-box .id-value { font-size: 2rem; font-weight: 800; color: var(--accent); letter-spacing: 0.12em; }
+  .voter-id-box .warning { font-size: 0.78rem; color: var(--gold); margin-top: 10px; line-height: 1.5; }
+  .tabs { display: flex; background: var(--surface); border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; position: sticky; top: 57px; z-index: 9; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { padding: 12px 16px; font-size: 0.8rem; font-weight: 700; color: var(--muted); cursor: pointer; white-space: nowrap; border-bottom: 2px solid transparent; transition: all 0.2s; }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+  .stat { background: var(--card); border-radius: var(--radius); padding: 14px 10px; text-align: center; border: 1px solid var(--border); }
+  .stat-val { font-size: 1.6rem; font-weight: 800; }
+  .stat-label { font-size: 0.68rem; color: var(--muted); margin-top: 2px; }
+  .result-row { margin-bottom: 14px; }
+  .result-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+  .result-name { font-size: 0.9rem; font-weight: 700; }
+  .result-votes { font-size: 0.8rem; color: var(--muted); }
+  .bar-track { background: var(--input); border-radius: 99px; height: 10px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 99px; transition: width 0.6s ease; }
+  /* Category voting */
+  .category-section { margin-bottom: 24px; }
+  .category-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; padding: 10px 14px; background: var(--surface); border-radius: 10px; border: 1px solid var(--border); }
+  .category-title { font-size: 1rem; font-weight: 800; color: var(--accent); }
+  .category-status { font-size: 0.75rem; padding: 3px 10px; border-radius: 99px; font-weight: 700; }
+  .cat-voted { background: #0d2a1f; color: var(--accent); }
+  .cat-pending { background: #2d2000; color: var(--gold); }
+  .cand-card { background: var(--card); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; border: 2px solid var(--border); cursor: pointer; transition: border-color 0.2s; }
+  .cand-card.selected { border-color: var(--accent); background: #1a3550; }
+  .cand-card.voted-card { border-color: var(--accent); opacity: 0.75; cursor: default; }
+  .cand-header { display: flex; align-items: center; gap: 12px; }
+  .cand-avatar { width: 44px; height: 44px; border-radius: 50%; background: var(--accent2); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: 800; color: white; flex-shrink: 0; }
+  .cand-name { font-size: 1rem; font-weight: 700; }
+  .cand-pos { font-size: 0.75rem; color: var(--accent); font-weight: 600; margin-top: 2px; }
+  .cand-bio { font-size: 0.82rem; color: var(--muted); margin-top: 10px; line-height: 1.5; }
+  .radio-dot { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--border); margin-left: auto; flex-shrink: 0; transition: all 0.2s; }
+  .cand-card.selected .radio-dot { background: var(--accent); border-color: var(--accent); }
+  .list-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .list-item:last-child { border-bottom: none; }
+  .list-item-info .name { font-size: 0.9rem; font-weight: 700; }
+  .list-item-info .sub { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+  .voter-id-badge { display: inline-block; background: var(--bg); border: 1px solid var(--accent); color: var(--accent); border-radius: 6px; padding: 2px 8px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; margin-top: 3px; }
+  .national-id-badge { display: inline-block; background: var(--bg); border: 1px solid var(--gold); color: var(--gold); border-radius: 6px; padding: 2px 8px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; margin-top: 3px; margin-left: 4px; }
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--accent); color: #0a1628; padding: 12px 24px; border-radius: 99px; font-weight: 700; font-size: 0.9rem; z-index: 999; opacity: 0; transition: opacity 0.3s; pointer-events: none; white-space: nowrap; }
+  .toast.show { opacity: 1; }
+  .log-entry { padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .log-entry:last-child { border-bottom: none; }
+  .log-time { font-size: 0.7rem; color: var(--muted); }
+  .log-event { font-size: 0.85rem; margin-top: 2px; }
+  .empty { text-align: center; padding: 40px 20px; color: var(--muted); font-size: 0.9rem; }
+  .empty .icon { font-size: 2.5rem; margin-bottom: 8px; }
+  .deadline-badge { background: #2d2000; border: 1px solid var(--gold); color: var(--gold); border-radius: 8px; padding: 8px 14px; font-size: 0.8rem; font-weight: 600; text-align: center; margin-bottom: 16px; }
+  .info-banner { background: #0d2a1f; border: 1px solid var(--accent); color: var(--accent); border-radius: 8px; padding: 10px 14px; font-size: 0.82rem; margin-bottom: 14px; line-height: 1.5; }
+  .warn-banner { background: #2d2000; border: 1px solid var(--gold); color: var(--gold); border-radius: 8px; padding: 10px 14px; font-size: 0.82rem; margin-bottom: 14px; line-height: 1.5; }
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; padding: 20px; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--card); border-radius: var(--radius); padding: 24px; width: 100%; max-width: 380px; border: 1px solid var(--border); }
+  .modal h3 { font-size: 1.1rem; margin-bottom: 16px; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 16px; }
+  .modal-actions .btn { margin-top: 0; }
+  .loading-overlay { position: fixed; inset: 0; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 200; gap: 16px; }
+  .loading-overlay.hidden { display: none; }
+  .spinner { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { color: var(--muted); font-size: 0.9rem; }
+  .id-result { background: var(--bg); border: 1.5px solid var(--border); border-radius: 10px; padding: 14px 16px; margin-top: 10px; }
+  .id-result .r-name { font-size: 0.9rem; font-weight: 700; }
+  .id-result .r-id { font-size: 1.2rem; font-weight: 800; color: var(--accent); letter-spacing: 0.1em; margin-top: 4px; }
+  .id-result .r-national { font-size: 0.85rem; font-weight: 700; color: var(--gold); margin-top: 4px; }
+  .id-result .r-status { font-size: 0.75rem; color: var(--muted); margin-top: 4px; }
+  .results-category { margin-bottom: 20px; }
+  .results-cat-title { font-size: 0.75rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent2); margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+  .vote-progress { display: flex; align-items: center; gap: 10px; padding: 8px 14px; background: var(--surface); border-radius: 8px; margin-bottom: 16px; }
+  .vote-progress-text { font-size: 0.82rem; color: var(--muted); flex: 1; }
+  .vote-progress-count { font-size: 0.85rem; font-weight: 800; color: var(--accent); }
+  .copy-id-btn { background: var(--surface); border: 1px solid var(--accent); color: var(--accent); border-radius: 8px; padding: 7px 16px; font-size: 0.82rem; font-weight: 700; cursor: pointer; margin-top: 10px; transition: background 0.15s; display: inline-flex; align-items: center; gap: 6px; }
+  .copy-id-btn:active { background: var(--input); }
+  .topbar-vid-copy { background: none; border: none; color: var(--accent); cursor: pointer; font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; margin-left: 4px; vertical-align: middle; }
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loading-overlay">
+  <div class="spinner"></div>
+  <div class="loading-text">Connecting to database…</div>
+</div>
+
+<!-- LOGIN SCREEN -->
+<div id="screen-login" class="screen">
+  <div class="login-hero">
+    <div class="emoji">🔐</div>
+    <div class="org" id="org-name-hero">Voting System</div>
+    <h1>Admin Login</h1>
+    <div class="tagline">Manage the election.</div>
+  </div>
+  <div class="content">
+    <div class="card">
+      <div class="card-title">Admin Access</div>
+      <div class="field"><label>Admin Password</label><input id="admin-pw" type="password" placeholder="Enter admin password"/></div>
+      <button class="btn btn-primary" onclick="adminLogin()">🔐 Admin Login</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN SCREEN -->
+<div id="screen-admin" class="screen">
+  <div class="topbar">
+    <div class="topbar-title">🔐 Admin Dashboard</div>
+    <button class="btn btn-sm btn-danger" onclick="logout()">Logout</button>
+  </div>
+  <div class="tabs">
+    <div class="tab active" onclick="adminTab('results',this)">📊 Results</div>
+    <div class="tab" onclick="adminTab('candidates',this)">🧑 Candidates</div>
+    <div class="tab" onclick="adminTab('voters',this)">🗳️ Voters</div>
+    <div class="tab" onclick="adminTab('whitelist',this)">👥 Add Voters</div>
+    <div class="tab" onclick="adminTab('lookup',this)">🔍 ID Lookup</div>
+    <div class="tab" onclick="adminTab('log',this)">📋 Log</div>
+    <div class="tab" onclick="adminTab('settings',this)">⚙️ Settings</div>
+  </div>
+  <div class="content">
+    <div id="tab-results" class="tab-content active"></div>
+
+    <div id="tab-candidates" class="tab-content">
+      <div class="card">
+        <div class="card-title">Add Candidate</div>
+        <div class="field"><label>Full Name</label><input id="c-name" type="text" placeholder="e.g. Sarah Johnson"/></div>
+        <div class="field">
+          <label>Category / Position</label>
+          <input id="c-pos" type="text" placeholder="e.g. President, Deputy President, Secretary"/>
+          <div class="field-hint">Candidates in the same category compete against each other. Voters vote once per category.</div>
+        </div>
+        <div class="field"><label>Bio (optional)</label><textarea id="c-bio" placeholder="Short description..."></textarea></div>
+        <div class="field">
+          <label>Photo (optional)</label>
+          <input id="c-photo" type="file" accept="image/*" onchange="previewCandidatePhoto(event)"/>
+          <div class="field-hint">A clear headshot works best. Image is resized automatically.</div>
+          <img id="c-photo-preview" style="display:none;margin-top:10px;width:80px;height:80px;border-radius:50%;object-fit:cover;border:2px solid var(--border)"/>
+        </div>
+        <button class="btn btn-primary" onclick="addCandidate()">➕ Add Candidate</button>
+      </div>
+      <div class="card">
+        <div class="card-title">All Candidates</div>
+        <div id="candidates-list"></div>
+      </div>
+    </div>
+
+    <div id="tab-voters" class="tab-content">
+      <div class="card">
+        <div class="card-title">Registered Voters</div>
+        <p style="font-size:0.8rem;color:var(--muted);margin-bottom:12px;">Voters log in with the Organization ID plus their National ID number and password. By default, each voter's password is the same as their National ID number.</p>
+        <div id="voters-list"></div>
+      </div>
+    </div>
+
+    <!-- Add Voters tab -->
+    <div id="tab-whitelist" class="tab-content">
+      <div class="card">
+        <div class="card-title">📤 Upload Voters (CSV)</div>
+        <p style="font-size:0.8rem;color:var(--muted);margin-bottom:12px;">CSV needs a <code>name</code> column and a <code>national_id</code> column. A header row is optional. Each voter's password is automatically set to their National ID number. National IDs already in use, or repeated within the file, are skipped automatically.</p>
+        <div class="field">
+          <label>CSV File</label>
+          <input id="wl-csv-input" type="file" accept=".csv,text/csv" onchange="handleVotersCSV(event)"/>
+          <div class="field-hint">Example row: <code>Jane Doe,12345678</code></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">➕ Add Single Voter</div>
+        <div class="field"><label>Full Name</label><input id="wl-name" type="text" placeholder="e.g. Jane Doe"/></div>
+        <div class="field">
+          <label>National ID No.</label>
+          <input id="wl-nid" type="text" placeholder="e.g. 12345678"/>
+          <div class="field-hint">This is also the voter's password.</div>
+        </div>
+        <button class="btn btn-primary" onclick="addWhitelistEntry()">➕ Add Voter</button>
+      </div>
+      <div class="card">
+        <div class="card-title">Provisioned Voters (<span id="whitelist-count">0</span>)</div>
+        <p style="font-size:0.8rem;color:var(--muted);margin-bottom:12px;">These are all the voters added so far. Removing someone here removes their account entirely.</p>
+        <div id="whitelist-list"></div>
+      </div>
+    </div>
+
+    <!-- ID Lookup tab -->
+    <div id="tab-lookup" class="tab-content">
+      <div class="card">
+        <div class="card-title">🔍 National ID Lookup</div>
+        <p style="font-size:0.8rem;color:var(--muted);margin-bottom:14px;">Search by National ID number or name.</p>
+        <div class="field">
+          <label>Search by National ID No.</label>
+          <input id="lookup-nid" type="text" placeholder="Enter the voter's National ID number"/>
+        </div>
+        <div class="field">
+          <label>— or — Search by Name</label>
+          <input id="lookup-name" type="text" placeholder="Enter voter's full name or part of it"/>
+        </div>
+        <button class="btn btn-primary" onclick="lookupVoter()">🔍 Search</button>
+        <div id="lookup-result"></div>
+      </div>
+    </div>
+
+    <div id="tab-log" class="tab-content">
+      <div class="card">
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+          <span>Activity Log</span>
+          <button class="btn btn-sm btn-danger" onclick="clearLogs()" style="font-size:0.75rem">🗑️ Clear Logs</button>
+        </div>
+        <div id="log-list"></div>
+      </div>
+    </div>
+
+    <div id="tab-settings" class="tab-content">
+      <div class="card">
+        <div class="card-title">🏢 Organization ID (Login Gate)</div>
+        <p style="font-size:0.8rem;color:var(--muted);margin-bottom:12px;">Voters must enter this exact ID, along with their National ID number and password, to log in. Share it with your voters separately from their individual credentials.</p>
+        <div class="field"><label>Organization ID</label><input id="org-id-input" type="text" placeholder="e.g. GFA2026"/></div>
+        <button class="btn btn-primary" onclick="saveOrgId()">💾 Save Organization ID</button>
+      </div>
+      <div class="card">
+        <div class="card-title">🏷️ Organisation Name (Display Only)</div>
+        <p style="font-size:0.8rem;color:var(--muted);margin-bottom:12px;">Shown on the voter login page as a friendly title. This is not used for security — use Organization ID above for that.</p>
+        <div class="field"><label>Organisation / Event Name</label><input id="org-name-input" type="text" placeholder="e.g. Greenfield Academy Elections 2026"/></div>
+        <button class="btn btn-primary" onclick="saveOrgName()">💾 Save Name</button>
+      </div>
+      <div class="card">
+        <div class="card-title">Voting Deadline</div>
+        <div class="field"><label>Deadline (date &amp; time)</label><input id="deadline-input" type="datetime-local"/></div>
+        <button class="btn btn-primary" onclick="saveDeadline()">💾 Save Deadline</button>
+      </div>
+      <div class="card">
+        <div class="card-title">🔑 Change Admin Password</div>
+        <div class="field"><label>Current Password</label><input id="pw-current" type="password" placeholder="Enter current password"/></div>
+        <div class="field"><label>New Password</label><input id="pw-new" type="password" placeholder="Enter new password"/></div>
+        <div class="field"><label>Confirm New Password</label><input id="pw-confirm" type="password" placeholder="Re-enter new password"/></div>
+        <button class="btn btn-primary" onclick="changeAdminPassword()">🔑 Update Password</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title" style="color:var(--red)">⚠️ Danger Zone</div>
+        <p style="font-size:0.83rem;color:var(--muted);margin-bottom:12px;">Reset all votes, voter records, or candidates.</p>
+        <button class="btn btn-danger" onclick="resetVotes()" style="margin-bottom:8px">🔄 Reset All Votes</button>
+        <button class="btn btn-danger" onclick="clearAllVoters()" style="margin-bottom:8px">🗑️ Remove All Voters</button>
+        <button class="btn btn-danger" onclick="clearAllCandidates()">🗑️ Remove All Candidates</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="confirm-modal">
+  <div class="modal">
+    <h3 id="modal-title">Confirm</h3>
+    <p id="modal-body" style="font-size:0.9rem;color:var(--muted);"></p>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="modal-confirm-btn">Confirm</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs,
+         addDoc, query, orderBy, limit, serverTimestamp, writeBatch, increment }
+  from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBHtjZ5z7NSSqhWEby5xvYoiOgLVIdBn_Y",
+  authDomain: "voting-app-e0dff.firebaseapp.com",
+  projectId: "voting-app-e0dff",
+  storageBucket: "voting-app-e0dff.firebasestorage.app",
+  messagingSenderId: "342593583090",
+  appId: "1:342593583090:web:8c35f61de341312ca91d6b",
+  measurementId: "G-BG0EMZN6KJ"
+};
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+
+const settingsRef   = doc(db, 'config', 'settings');
+const candidatesCol = collection(db, 'candidates');
+const votersCol     = collection(db, 'voters');
+const logCol        = collection(db, 'log');
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function hash(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = (Math.imul(31, h) + str.charCodeAt(i)) | 0;
+  return h.toString(36);
+}
+
+async function logEvent(event) {
+  try { await addDoc(logCol, { event, time: new Date().toLocaleString(), ts: serverTimestamp() }); }
+  catch (e) { console.error('logEvent:', e); }
+}
+
+async function getSettings() {
+  const snap = await getDoc(settingsRef);
+  return snap.exists() ? snap.data() : { deadline: '', adminPw: 'admin123', orgName: '', orgId: '' };
+}
+
+async function getCandidates() {
+  const snap = await getDocs(candidatesCol);
+  return snap.docs.map(d => ({ firestoreId: d.id, ...d.data() }));
+}
+
+async function getVoters() {
+  const snap = await getDocs(votersCol);
+  return snap.docs.map(d => ({ firestoreId: d.id, ...d.data() }));
+}
+
+async function getLog() {
+  const q = query(logCol, orderBy('ts', 'desc'), limit(200));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => d.data());
+}
+
+async function initSettings() {
+  const snap = await getDoc(settingsRef);
+  if (!snap.exists()) await setDoc(settingsRef, { deadline: '', adminPw: 'admin123', orgName: '', orgId: '' });
+}
+
+// Group candidates by category/position
+function groupByCategory(candidates) {
+  const groups = {};
+  candidates.forEach(c => {
+    const cat = (c.position || 'General').trim();
+    if (!groups[cat]) groups[cat] = [];
+    groups[cat].push(c);
+  });
+  return groups;
+}
+
+// ── State ────────────────────────────────────────────────────────────────────
+let currentUser = null;
+// selectedVotes: { [category]: candidateFirestoreId }
+let selectedVotes = {};
+
+// ── Admin Login ───────────────────────────────────────────────────────────────
+window.adminLogin = async function() {
+  const pw = document.getElementById('admin-pw').value.trim();
+  setLoading(true);
+  try {
+    const settings = await getSettings();
+    if (pw !== (settings.adminPw || 'admin123')) { toast('Wrong admin password.'); return; }
+    await logEvent('Admin logged in');
+    showAdminScreen();
+  } catch (e) {
+    toast('Error connecting to database. Try again.'); console.error(e);
+  } finally {
+    setLoading(false);
+  }
+};
+
+window.logout = function() {
+  currentUser = null;
+  const el = document.getElementById('admin-pw'); if (el) el.value = '';
+  show('screen-login');
+};
+
+// ── Screens ──────────────────────────────────────────────────────────────────
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ── Admin ─────────────────────────────────────────────────────────────────────
+async function showAdminScreen() {
+  show('screen-admin');
+  renderResults(); renderCandidates(); renderVoters(); renderSettings(); renderWhitelist();
+}
+
+window.adminTab = function(name, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'results')    renderResults();
+  if (name === 'voters')     renderVoters();
+  if (name === 'whitelist')  renderWhitelist();
+  if (name === 'log')        renderLog();
+  if (name === 'candidates') renderCandidates();
+  if (name === 'lookup')     { document.getElementById('lookup-result').innerHTML = ''; document.getElementById('lookup-name').value = ''; document.getElementById('lookup-nid').value = ''; }
+};
+
+window.renderResults = async function() {
+  const el = document.getElementById('tab-results');
+  el.innerHTML = `<div class="empty"><div class="spinner" style="margin:40px auto"></div></div>`;
+  try {
+    const candidates = await getCandidates();
+    const voters     = await getVoters();
+    const totalV     = voters.length;
+    const totalVoted = voters.filter(v => v.voted).length;
+    const turnout    = totalV ? Math.round(totalVoted / totalV * 100) : 0;
+
+    const categoryGroups = groupByCategory(candidates);
+    const categories = Object.keys(categoryGroups);
+
+    const barColors = ['#00d4aa','#4f8ef7','#fbbf24','#f43f5e','#a78bfa'];
+    const medals = ['🥇','🥈','🥉'];
+
+    let categoriesHtml = '';
+    categories.forEach(cat => {
+      const cands = categoryGroups[cat];
+      const totalVotes = cands.reduce((a,c) => a + (c.votes||0), 0);
+      const sorted = [...cands].sort((a,b) => (b.votes||0) - (a.votes||0));
+      const barsHtml = sorted.map((c, i) => {
+        const maxV = sorted.length ? (sorted[0].votes||0) : 1;
+        const pct = maxV > 0 ? Math.round((c.votes||0) / maxV * 100) : 0;
+        return `<div class="result-row">
+          <div class="result-meta">
+            <span class="result-name">${medals[i]||'  '} ${c.name}</span>
+            <span class="result-votes">${c.votes||0} vote${(c.votes||0)!==1?'s':''}</span>
+          </div>
+          <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${barColors[i%barColors.length]}"></div></div>
+        </div>`;
+      }).join('');
+      categoriesHtml += `
+        <div class="card" style="margin-bottom:14px">
+          <div class="results-cat-title">${cat} — ${totalVotes} vote${totalVotes!==1?'s':''}</div>
+          ${barsHtml || '<div class="empty" style="padding:16px 0">No candidates.</div>'}
+        </div>`;
+    });
+
+    el.innerHTML = `
+      <div class="stats">
+        <div class="stat"><div class="stat-val" style="color:var(--accent2)">${totalV}</div><div class="stat-label">Registered</div></div>
+        <div class="stat"><div class="stat-val" style="color:var(--accent)">${totalVoted}</div><div class="stat-label">Fully Voted</div></div>
+        <div class="stat"><div class="stat-val" style="color:var(--gold)">${turnout}%</div><div class="stat-label">Turnout</div></div>
+      </div>
+      ${categoriesHtml || '<div class="empty"><div class="icon">📊</div>No candidates yet.</div>'}
+      <button class="btn btn-secondary" onclick="renderResults()" style="margin-bottom:8px">🔄 Refresh</button>
+      <button class="btn btn-primary" onclick="printResults()">🖨️ Print Contestants &amp; Winners</button>`;
+  } catch (e) {
+    el.innerHTML = `<div class="empty"><div class="icon">⚠️</div>Failed to load results.</div>`; console.error(e);
+  }
+};
+
+// ── Print Contestants & Winners ─────────────────────────────────────────────
+window.printResults = async function() {
+  setLoading(true);
+  try {
+    const candidates = await getCandidates();
+    const settings    = await getSettings();
+    if (!candidates.length) { toast('No candidates to print yet.'); return; }
+
+    const categoryGroups = groupByCategory(candidates);
+    const categories = Object.keys(categoryGroups);
+    const orgTitle = settings.orgName || 'Voting System';
+    const generatedAt = new Date().toLocaleString();
+
+    let bodyHtml = '';
+    categories.forEach(cat => {
+      const cands = categoryGroups[cat];
+      const totalVotes = cands.reduce((a,c) => a + (c.votes||0), 0);
+      const sorted = [...cands].sort((a,b) => (b.votes||0) - (a.votes||0));
+      const topVotes = sorted.length ? (sorted[0].votes||0) : 0;
+      const rowsHtml = sorted.map(c => {
+        const isWinner = totalVotes > 0 && (c.votes||0) === topVotes && topVotes > 0;
+        const photoHtml = c.photoUrl
+          ? `<img src="${c.photoUrl}" style="width:50px;height:50px;border-radius:50%;object-fit:cover"/>`
+          : `<div style="width:50px;height:50px;border-radius:50%;background:#ddd;display:flex;align-items:center;justify-content:center;font-weight:700;color:#555">${c.name.charAt(0)}</div>`;
+        return `<tr style="${isWinner ? 'background:#fff7da' : ''}">
+          <td style="padding:8px;border-bottom:1px solid #ddd">${photoHtml}</td>
+          <td style="padding:8px;border-bottom:1px solid #ddd;font-weight:${isWinner?'700':'400'}">${c.name}${isWinner ? ' &nbsp;🏆' : ''}</td>
+          <td style="padding:8px;border-bottom:1px solid #ddd;text-align:right">${c.votes||0}</td>
+        </tr>`;
+      }).join('');
+      bodyHtml += `
+        <h2 style="font-size:16px;margin:24px 0 8px;border-bottom:2px solid #333;padding-bottom:4px">${cat}</h2>
+        <p style="font-size:12px;color:#555;margin:0 0 8px">Total votes cast: ${totalVotes}${topVotes > 0 ? ` · Winner: ${sorted.filter(c => (c.votes||0)===topVotes).map(c=>c.name).join(' & ')}` : ' · No votes yet'}</p>
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead><tr><th style="text-align:left;padding:6px 8px;border-bottom:2px solid #333">Photo</th><th style="text-align:left;padding:6px 8px;border-bottom:2px solid #333">Candidate</th><th style="text-align:right;padding:6px 8px;border-bottom:2px solid #333">Votes</th></tr></thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>`;
+    });
+
+    const win = window.open('', '_blank');
+    win.document.write(`<!DOCTYPE html><html><head><title>${orgTitle} — Results</title>
+      <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; color: #111; padding: 30px; max-width: 720px; margin: 0 auto; }
+        h1 { font-size: 20px; margin-bottom: 2px; }
+        .meta { font-size: 12px; color: #666; margin-bottom: 20px; }
+        @media print { button { display: none; } }
+      </style></head>
+      <body>
+        <h1>🗳️ ${orgTitle} — Contestants &amp; Results</h1>
+        <div class="meta">Generated: ${generatedAt}</div>
+        ${bodyHtml}
+        <button onclick="window.print()" style="margin-top:24px;padding:10px 20px;font-weight:700;cursor:pointer">🖨️ Print this page</button>
+      </body></html>`);
+    win.document.close();
+    win.focus();
+    await logEvent('Admin generated a printable contestants & winners report');
+  } catch (e) {
+    toast('Error generating print view.'); console.error(e);
+  } finally {
+    setLoading(false);
+  }
+};
+
+// ── Candidate Photo Helper ──────────────────────────────────────────────────
+function resizeImageFile(file, maxDim) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if (w > h && w > maxDim) { h = Math.round(h * maxDim / w); w = maxDim; }
+        else if (h > maxDim) { w = Math.round(w * maxDim / h); h = maxDim; }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', 0.75));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+let pendingCandidatePhoto = null;
+
+window.previewCandidatePhoto = async function(event) {
+  const file = event.target.files[0];
+  const preview = document.getElementById('c-photo-preview');
+  if (!file) { pendingCandidatePhoto = null; preview.style.display = 'none'; return; }
+  try {
+    pendingCandidatePhoto = await resizeImageFile(file, 240);
+    preview.src = pendingCandidatePhoto;
+    preview.style.display = 'block';
+  } catch (e) { toast('Could not read that image.'); console.error(e); }
+};
+
+window.addCandidate = async function() {
+  const name = document.getElementById('c-name').value.trim();
+  const pos  = document.getElementById('c-pos').value.trim();
+  const bio  = document.getElementById('c-bio').value.trim();
+  if (!name || !pos) { toast('Name and Category/Position are required.'); return; }
+  setLoading(true);
+  try {
+    await addDoc(candidatesCol, { name, position: pos, bio, votes: 0, photoUrl: pendingCandidatePhoto || null });
+    await logEvent(`Admin added candidate: ${name} (${pos})`);
+    document.getElementById('c-name').value = '';
+    document.getElementById('c-pos').value  = '';
+    document.getElementById('c-bio').value  = '';
+    document.getElementById('c-photo').value = '';
+    document.getElementById('c-photo-preview').style.display = 'none';
+    pendingCandidatePhoto = null;
+    toast('Candidate added!'); renderCandidates();
+  } catch (e) { toast('Error adding candidate.'); console.error(e); }
+  finally { setLoading(false); }
+};
+
+window.removeCandidate = async function(firestoreId, name) {
+  openModal(`Remove ${name}?`, 'This candidate and their votes will be deleted.', async () => {
+    setLoading(true);
+    try {
+      await deleteDoc(doc(db, 'candidates', firestoreId));
+      await logEvent(`Admin removed candidate: ${name}`);
+      toast('Candidate removed.'); renderCandidates(); renderResults();
+    } catch (e) { toast('Error removing candidate.'); console.error(e); }
+    finally { setLoading(false); }
+  });
+};
+
+async function renderCandidates() {
+  const el = document.getElementById('candidates-list');
+  el.innerHTML = `<div class="empty"><div class="spinner" style="margin:20px auto"></div></div>`;
+  try {
+    const candidates = await getCandidates();
+    if (!candidates.length) { el.innerHTML = `<div class="empty"><div class="icon">🧑</div>No candidates yet.</div>`; return; }
+    const groups = groupByCategory(candidates);
+    let html = '';
+    Object.keys(groups).forEach(cat => {
+      html += `<div style="font-size:0.7rem;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent2);margin:14px 0 6px">${cat}</div>`;
+      groups[cat].forEach(c => {
+        const avatar = c.photoUrl
+          ? `<img src="${c.photoUrl}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0"/>`
+          : `<div style="width:36px;height:36px;border-radius:50%;background:var(--accent2);display:flex;align-items:center;justify-content:center;font-weight:800;color:white;flex-shrink:0">${c.name.charAt(0)}</div>`;
+        html += `<div class="list-item">
+          <div style="display:flex;align-items:center;gap:10px">
+            ${avatar}
+            <div class="list-item-info">
+              <div class="name">${c.name}</div>
+              <div class="sub">${c.votes||0} vote${(c.votes||0)!==1?'s':''}</div>
+            </div>
+          </div>
+          <button class="btn btn-sm btn-danger" onclick="removeCandidate('${c.firestoreId}','${c.name.replace(/'/g,"\\'")}')" >Remove</button>
+        </div>`;
+      });
+    });
+    el.innerHTML = html;
+  } catch (e) { el.innerHTML = `<div class="empty"><div class="icon">⚠️</div>Failed to load.</div>`; console.error(e); }
+}
+
+// ── Add Voters (provisioning) ──────────────────────────────────────────────────
+async function renderWhitelist() {
+  const el = document.getElementById('whitelist-list');
+  if (!el) return;
+  el.innerHTML = `<div class="empty"><div class="spinner" style="margin:20px auto"></div></div>`;
+  try {
+    const voters = await getVoters();
+    const countEl = document.getElementById('whitelist-count');
+    if (countEl) countEl.textContent = voters.length;
+    if (!voters.length) { el.innerHTML = `<div class="empty"><div class="icon">📜</div>No voters added yet. Upload a CSV or add one manually.</div>`; return; }
+    el.innerHTML = voters.map(v => {
+      const safeName = (v.name || '').replace(/'/g, "\\'");
+      const safeId    = (v.nationalId || '').replace(/'/g, "\\'");
+      return `<div class="list-item">
+        <div class="list-item-info">
+          <div class="name">${v.name || '(no name on file)'}</div>
+          <div class="sub">🪪 ${v.nationalId}</div>
+        </div>
+        <button class="btn btn-sm btn-danger" onclick="removeWhitelistEntry('${v.firestoreId}','${safeName}')">Remove</button>
+      </div>`;
+    }).join('');
+  } catch (e) { el.innerHTML = `<div class="empty"><div class="icon">⚠️</div>Failed to load.</div>`; console.error(e); }
+}
+
+window.addWhitelistEntry = async function() {
+  const name = document.getElementById('wl-name').value.trim();
+  const nid  = document.getElementById('wl-nid').value.trim();
+  if (!nid) { toast('National ID number is required.'); return; }
+  setLoading(true);
+  try {
+    const voters = await getVoters();
+    if (voters.some(v => v.nationalId && v.nationalId.toLowerCase() === nid.toLowerCase())) {
+      toast('That National ID is already in use.'); return;
+    }
+    await addDoc(votersCol, {
+      nationalId: nid,
+      name,
+      password: hash(nid),
+      voted: false,
+      votedFor: null,
+      votedCategories: {},
+      addedAt: new Date().toLocaleString()
+    });
+    await logEvent(`Admin added voter "${name || nid}" (National ID: ${nid})`);
+    document.getElementById('wl-name').value = '';
+    document.getElementById('wl-nid').value  = '';
+    toast('Voter added!'); renderWhitelist(); renderVoters();
+  } catch (e) { toast('Error adding voter.'); console.error(e); }
+  finally { setLoading(false); }
+};
+
+window.removeWhitelistEntry = async function(firestoreId, name) {
+  openModal(`Remove ${name || 'this voter'}?`, 'This voter account will be deleted, including their voting status. This cannot be undone.', async () => {
+    setLoading(true);
+    try {
+      await deleteDoc(doc(db, 'voters', firestoreId));
+      await logEvent(`Admin removed voter "${name}"`);
+      toast('Voter removed.'); renderWhitelist(); renderVoters();
+    } catch (e) { toast('Error removing voter.'); console.error(e); }
+    finally { setLoading(false); }
+  }, 'danger');
+};
+
+function parseCSV(text) {
+  return text.split(/\r?\n/)
+    .filter(line => line.trim().length)
+    .map(line => {
+      const parts = [];
+      let cur = '', inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') { inQuotes = !inQuotes; continue; }
+        if (ch === ',' && !inQuotes) { parts.push(cur); cur = ''; continue; }
+        cur += ch;
+      }
+      parts.push(cur);
+      return parts.map(p => p.trim());
+    });
+}
+
+window.handleVotersCSV = function(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    setLoading(true);
+    try {
+      const rows = parseCSV(e.target.result);
+      if (!rows.length) { toast('CSV file is empty.'); return; }
+
+      // Detect a header row and figure out which column is which
+      const lower = rows[0].map(c => c.toLowerCase());
+      const hasHeader = lower.some(c => c.includes('name')) || lower.some(c => c.includes('national') || c.includes('id'));
+      const startIdx = hasHeader ? 1 : 0;
+      const nameIdx = hasHeader ? lower.findIndex(c => c.includes('name')) : 0;
+      const idIdx   = hasHeader ? lower.findIndex(c => c.includes('national') || c.includes('id')) : 1;
+
+      const existing = await getVoters();
+      const existingIds = new Set(existing.map(v => (v.nationalId || '').toLowerCase()).filter(Boolean));
+      const seenInFile = new Set();
+
+      const batch = writeBatch(db);
+      let added = 0, skipped = 0;
+      for (let i = startIdx; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row.length || row.every(c => !c)) continue;
+        const name = (row[nameIdx >= 0 ? nameIdx : 0] || '').trim();
+        const nid  = (row[idIdx   >= 0 ? idIdx   : 1] || '').trim();
+        if (!nid) { skipped++; continue; }
+        const key = nid.toLowerCase();
+        if (existingIds.has(key) || seenInFile.has(key)) { skipped++; continue; }
+        seenInFile.add(key);
+        batch.set(doc(votersCol), {
+          nationalId: nid,
+          name,
+          password: hash(nid),
+          voted: false,
+          votedFor: null,
+          votedCategories: {},
+          addedAt: new Date().toLocaleString()
+        });
+        added++;
+      }
+      if (added > 0) await batch.commit();
+      await logEvent(`Admin uploaded voters CSV: ${added} added, ${skipped} skipped`);
+      toast(`Voters updated: ${added} added, ${skipped} skipped.`);
+      renderWhitelist(); renderVoters();
+    } catch (err) {
+      toast('Error processing CSV file. Check the format and try again.'); console.error(err);
+    } finally {
+      setLoading(false);
+      event.target.value = '';
+    }
+  };
+  reader.readAsText(file);
+};
+
+window.removeVoter = async function(firestoreId, voterName) {
+  openModal(`Remove ${voterName}?`, 'This voter account will be deleted, including their voting status. This cannot be undone.', async () => {
+    setLoading(true);
+    try {
+      await deleteDoc(doc(db, 'voters', firestoreId));
+      await logEvent(`Admin removed voter: ${voterName}`);
+      toast('Voter removed.'); renderResults(); renderVoters(); renderWhitelist();
+    } catch (e) { toast('Error removing voter.'); console.error(e); }
+    finally { setLoading(false); }
+  });
+};
+
+async function renderVoters() {
+  const el = document.getElementById('voters-list');
+  el.innerHTML = `<div class="empty"><div class="spinner" style="margin:20px auto"></div></div>`;
+  try {
+    const voters = await getVoters();
+    if (!voters.length) { el.innerHTML = `<div class="empty"><div class="icon">🗳️</div>No voters added yet.</div>`; return; }
+    el.innerHTML = voters.map(v => {
+      const catVoted = v.votedCategories ? Object.keys(v.votedCategories).length : 0;
+      const safeName = v.name.replace(/'/g, "\\'");
+      return `<div class="list-item">
+        <div class="list-item-info">
+          <div class="name">${v.name}</div>
+          <div><span class="voter-id-badge">${v.nationalId || 'No ID'}</span></div>
+          <div class="sub" style="margin-top:4px">${v.voted ? '✅ All done' : catVoted > 0 ? `⏳ Voted in ${catVoted} categor${catVoted!==1?'ies':'y'}` : '⏳ Not voted'}</div>
+        </div>
+        <button class="btn btn-sm btn-danger" onclick="removeVoter('${v.firestoreId}','${safeName}')">Remove</button>
+      </div>`;
+    }).join('');
+  } catch (e) { el.innerHTML = `<div class="empty"><div class="icon">⚠️</div>Failed to load.</div>`; console.error(e); }
+}
+
+// ── Voter ID Lookup ─────────────────────────────────────────────────────────
+window.lookupVoter = async function() {
+  const idQ   = document.getElementById('lookup-nid').value.trim().toLowerCase();
+  const nameQ = document.getElementById('lookup-name').value.trim().toLowerCase();
+  const el    = document.getElementById('lookup-result');
+  if (!idQ && !nameQ) { toast('Enter a National ID number or name to search.'); return; }
+  el.innerHTML = `<div style="text-align:center;padding:16px 0"><div class="spinner" style="margin:0 auto"></div></div>`;
+  try {
+    const voters  = await getVoters();
+    let matches;
+    if (idQ) {
+      matches = voters.filter(v => v.nationalId && v.nationalId.toLowerCase() === idQ);
+      if (!matches.length) matches = voters.filter(v => v.nationalId && v.nationalId.toLowerCase().includes(idQ));
+    } else {
+      matches = voters.filter(v => v.name.toLowerCase().includes(nameQ));
+    }
+    if (!matches.length) {
+      el.innerHTML = `<div style="padding:14px 0;color:var(--muted);font-size:0.88rem;text-align:center">No voter found with that ${idQ ? 'National ID' : 'name'}.</div>`;
+      return;
+    }
+    el.innerHTML = matches.map(v => {
+      const catVoted = v.votedCategories ? Object.keys(v.votedCategories).length : 0;
+      return `<div class="id-result">
+        <div class="r-name">${v.name}</div>
+        <div class="r-id">${v.nationalId || 'No ID'}</div>
+        <div class="r-status">${v.voted ? '✅ Fully voted' : catVoted > 0 ? `⏳ Voted in ${catVoted} categor${catVoted!==1?'ies':'y'}` : '⏳ Has not voted yet'} · Added: ${v.addedAt || 'N/A'}</div>
+      </div>`;
+    }).join('');
+    await logEvent(`Admin looked up voter by ${idQ ? 'National ID' : 'name'} "${idQ || nameQ}"`);
+  } catch (e) {
+    el.innerHTML = `<div style="color:var(--red);font-size:0.88rem;padding:10px 0">Error during lookup.</div>`; console.error(e);
+  }
+};
+
+// ── Log ───────────────────────────────────────────────────────────────────────
+async function renderLog() {
+  const el = document.getElementById('log-list');
+  el.innerHTML = `<div class="empty"><div class="spinner" style="margin:20px auto"></div></div>`;
+  try {
+    const log = await getLog();
+    if (!log.length) { el.innerHTML = `<div class="empty"><div class="icon">📋</div>No activity yet.</div>`; return; }
+    el.innerHTML = log.map(e => `<div class="log-entry"><div class="log-time">${e.time}</div><div class="log-event">${e.event}</div></div>`).join('');
+  } catch (e) { el.innerHTML = `<div class="empty"><div class="icon">⚠️</div>Failed to load log.</div>`; console.error(e); }
+}
+
+window.clearLogs = function() {
+  openModal('Clear all logs?', 'All activity log entries will be permanently deleted. This cannot be undone.', async () => {
+    setLoading(true);
+    try {
+      const q    = query(logCol, orderBy('ts', 'desc'), limit(500));
+      const snap = await getDocs(q);
+      const batch = writeBatch(db);
+      snap.docs.forEach(d => batch.delete(d.ref));
+      await batch.commit();
+      toast('Logs cleared. 🗑️'); renderLog();
+    } catch (e) { toast('Error clearing logs.'); console.error(e); }
+    finally { setLoading(false); }
+  }, 'danger');
+};
+
+// ── Settings ──────────────────────────────────────────────────────────────────
+async function renderSettings() {
+  try {
+    const settings = await getSettings();
+    if (settings.deadline) {
+      const dl    = new Date(settings.deadline);
+      const local = new Date(dl - dl.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+      document.getElementById('deadline-input').value = local;
+    }
+    if (settings.orgName) document.getElementById('org-name-input').value = settings.orgName;
+    if (settings.orgId) document.getElementById('org-id-input').value = settings.orgId;
+  } catch (e) { console.error('renderSettings:', e); }
+}
+
+window.saveOrgId = async function() {
+  const orgId = document.getElementById('org-id-input').value.trim();
+  if (!orgId) { toast('Enter an Organization ID.'); return; }
+  setLoading(true);
+  try {
+    await setDoc(settingsRef, { orgId }, { merge: true });
+    await logEvent(`Admin set Organization ID to "${orgId}"`);
+    toast('Organization ID saved! ✅');
+  } catch (e) { toast('Error saving Organization ID.'); console.error(e); }
+  finally { setLoading(false); }
+};
+
+window.saveOrgName = async function() {
+  const name = document.getElementById('org-name-input').value.trim();
+  if (!name) { toast('Enter an organisation name.'); return; }
+  setLoading(true);
+  try {
+    await setDoc(settingsRef, { orgName: name }, { merge: true });
+    document.getElementById('org-name-hero').textContent = name;
+    await logEvent(`Admin set organisation name to "${name}"`);
+    toast('Organisation name saved! ✅');
+  } catch (e) { toast('Error saving name.'); console.error(e); }
+  finally { setLoading(false); }
+};
+
+window.saveDeadline = async function() {
+  const val = document.getElementById('deadline-input').value;
+  if (!val) { toast('Pick a date and time.'); return; }
+  setLoading(true);
+  try {
+    await setDoc(settingsRef, { deadline: new Date(val).toISOString() }, { merge: true });
+    await logEvent(`Admin set voting deadline to ${new Date(val).toLocaleString()}`);
+    toast('Deadline saved!');
+  } catch (e) { toast('Error saving deadline.'); console.error(e); }
+  finally { setLoading(false); }
+};
+
+window.changeAdminPassword = async function() {
+  const current = document.getElementById('pw-current').value.trim();
+  const newPw   = document.getElementById('pw-new').value.trim();
+  const confirm = document.getElementById('pw-confirm').value.trim();
+  if (!current || !newPw || !confirm) { toast('Fill in all three fields.'); return; }
+  if (newPw !== confirm) { toast('New passwords do not match.'); return; }
+  if (newPw.length < 6)  { toast('New password must be at least 6 characters.'); return; }
+  setLoading(true);
+  try {
+    const settings = await getSettings();
+    if (current !== (settings.adminPw || 'admin123')) { toast('Current password is incorrect.'); return; }
+    await setDoc(settingsRef, { adminPw: newPw }, { merge: true });
+    await logEvent('Admin changed the admin password');
+    ['pw-current','pw-new','pw-confirm'].forEach(id => { document.getElementById(id).value = ''; });
+    toast('Password updated! 🔑');
+  } catch (e) { toast('Error updating password.'); console.error(e); }
+  finally { setLoading(false); }
+};
+
+window.resetVotes = function() {
+  openModal('Reset all votes?', 'Vote counts will be cleared and all voters marked as not voted. This cannot be undone.', async () => {
+    setLoading(true);
+    try {
+      const batch = writeBatch(db);
+      const candidates = await getCandidates();
+      const voters = await getVoters();
+      candidates.forEach(c => batch.update(doc(db, 'candidates', c.firestoreId), { votes: 0 }));
+      voters.forEach(v => batch.update(doc(db, 'voters', v.firestoreId), { voted: false, votedFor: null, votedCategories: {} }));
+      await batch.commit();
+      await logEvent('Admin reset all votes');
+      toast('All votes reset.'); renderResults(); renderVoters();
+    } catch (e) { toast('Error resetting votes.'); console.error(e); }
+    finally { setLoading(false); }
+  }, 'danger');
+};
+
+window.clearAllVoters = function() {
+  openModal('Remove all voters?', 'Every voter account will be deleted. Votes are also cleared. You will need to re-add voters before they can log in again.', async () => {
+    setLoading(true);
+    try {
+      const batch = writeBatch(db);
+      const voters = await getVoters();
+      const candidates = await getCandidates();
+      voters.forEach(v => batch.delete(doc(db, 'voters', v.firestoreId)));
+      candidates.forEach(c => batch.update(doc(db, 'candidates', c.firestoreId), { votes: 0 }));
+      await batch.commit();
+      await logEvent('Admin cleared all voters and votes');
+      toast('All voters removed.'); renderResults(); renderVoters(); renderWhitelist();
+    } catch (e) { toast('Error clearing voters.'); console.error(e); }
+    finally { setLoading(false); }
+  }, 'danger');
+};
+
+window.clearAllCandidates = function() {
+  openModal('Remove all candidates?', 'Every candidate and their votes will be deleted. Voters who already voted will keep their "voted" status, but their selections will no longer point to any candidate. This cannot be undone.', async () => {
+    setLoading(true);
+    try {
+      const candidates = await getCandidates();
+      const batch = writeBatch(db);
+      candidates.forEach(c => batch.delete(doc(db, 'candidates', c.firestoreId)));
+      await batch.commit();
+      await logEvent('Admin removed all candidates');
+      toast('All candidates removed.'); renderResults(); renderCandidates();
+    } catch (e) { toast('Error clearing candidates.'); console.error(e); }
+    finally { setLoading(false); }
+  }, 'danger');
+};
+
+// ── Copy Voter ID ─────────────────────────────────────────────────────────────
+window.copyVoterId = function(sourceId, btn) {
+  const text = document.getElementById(sourceId).textContent.trim();
+  if (!text || text === '—') return;
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = btn.innerHTML;
+    btn.innerHTML = '✅ Copied!';
+    setTimeout(() => { btn.innerHTML = orig; }, 2000);
+  }).catch(() => {
+    // Fallback for older browsers
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    const orig = btn.innerHTML;
+    btn.innerHTML = '✅ Copied!';
+    setTimeout(() => { btn.innerHTML = orig; }, 2000);
+  });
+};
+
+// ── Modal ─────────────────────────────────────────────────────────────────────
+let _modalCb = null;
+window.openModal = function(title, body, cb, type) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').textContent  = body;
+  const btn = document.getElementById('modal-confirm-btn');
+  btn.className   = 'btn ' + (type === 'danger' ? 'btn-danger' : 'btn-primary');
+  btn.textContent = type === 'danger' ? 'Yes, proceed' : 'Confirm';
+  _modalCb = cb;
+  document.getElementById('confirm-modal').classList.add('open');
+};
+window.closeModal = function() {
+  document.getElementById('confirm-modal').classList.remove('open'); _modalCb = null;
+};
+document.getElementById('modal-confirm-btn').onclick = () => { if (_modalCb) _modalCb(); closeModal(); };
+document.getElementById('confirm-modal').onclick = (e) => { if (e.target === e.currentTarget) closeModal(); };
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+let _toastTimer;
+window.toast = function(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+};
+
+function setLoading(on) {
+  document.getElementById('loading-overlay').classList.toggle('hidden', !on);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+(async () => {
+  try {
+    await initSettings();
+  } catch (e) {
+    console.error('Init error:', e);
+    toast('Could not connect to database. Check your network.');
+  } finally {
+    setLoading(false);
+    show('screen-login');
+  }
+})();
+</script>
+</body>
+</html>
