@@ -188,6 +188,325 @@
     <div id="tab-voters" class="tab-content">
       <div class="card">
         <div class="card-title">Registered Voters</div>
+        <p style="font-size:0.8rem;color:var(--muted);margin-bottom:12px;">Voters log in with the Organization ID plus their National ID number — no separate password required.</p>
+        <div id="voters-list"></div>
+      </div>
+    </div>
+
+    <!-- Add Voters tab -->
+    <div id="tab-whitelist" class="tab-content">
+      <div class="card">
+        <div class="card-title">📤 Upload Voters (CSV)</div>
+        <p style="font-size:0.8rem;color:var(--muted);margin-bottom:12px;">CSV needs a <code>name</code> column and a <code>national_id</code> column. A header row is optional. National IDs already in use, or repeated within the file, are skipped automatically.</p>
+        <div class="field">
+          <label>CSV File</label>
+          <input id="wl-csv-input" type="file" accept=".csv,text/csv" onchange="handleVotersCSV(event)"/>
+          <div class="field-hint">Example row: <code>Jane Doe,12345678</code></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">➕ Add Single Voter</div>
+        <div class="field"><label>Full Name</label><input id="wl-name" type="text" placeholder="e.g. Jane Doe"/></div>
+        <div class="field">
+          <label>National ID No.</label>
+          <input id="wl-nid" type="text" placeholder="e.g. 12345678"/>
+        </div>
+        <button class="btn btn-primary" onclick="addWhitelistEntry()">➕ Add Voter</button>
+      </div>
+      <div class="card">
+        <div class="card-title">Provisioned Voters (<span id="whitelist-count">0</span>)</div>
+        <p style="font-size:0.8rem;color:var(--muted);margin-bottom:12px;">These are all the voters added so far. Removing someone here removes their account entirely.</p>
+        <div id="whitelist-list"></div>
+      </div>
+    </div>
+
+    <!-- ID Lookup tab -->
+    <div id="tab-lookup" class="tab-content">
+      <div class="card">
+        <div class="card-title">🔍 National ID Lookup</div>
+        <p style="font-size:0.8rem;color:var(--muted);margin-bottom:14px;">Search by National ID number or name.</p>
+        <div class="field">
+          <label>Search by National ID No.</label>
+          <input id="lookup-nid" type="text" placeholder="Enter the voter's National ID number"/>
+        </div>
+        <div class="field">
+          <label>— or — Search by Name</label>
+          <input id="lookup-name" type="text" placeholder="Enter voter's full name or part of it"/>
+        </div>
+        <button class="btn btn-primary" onclick="lookupVoter()">🔍 Search</button>
+        <div id="lookup-result"></div>
+      </div>
+    </div>
+
+    <div id="tab-log" class="tab-content">
+      <div class="card">
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+          <span>Activity Log</span>
+          <button class="btn btn-sm btn-danger" onclick="clearLogs()" style="font-size:0.75rem">🗑️ Clear Logs</button>
+        </div>
+        <div id="log-list"></div>
+      </div>
+    </div>
+
+    <div id="tab-settings" class="tab-content">
+      <div class="card">
+        <div class="card-title">🏢 Organization ID (Login Gate)</div>
+        <p style="font-size:0.8rem;color:var(--muted);margin-bottom:12px;">Voters must enter this exact ID, along with their National ID number, to log in. Share it with your voters separately from their individual National ID numbers.</p>
+        <div class="field"><label>Organization ID</label><input id="org-id-input" type="text" placeholder="e.g. GFA2026"/></div>
+        <button class="btn btn-primary" onclick="saveOrgId()">💾 Save Organization ID</button>
+      </div>
+      <div class="card">
+        <div class="card-title">🏷️ Organisation Name (Display Only)</div>
+        <p style="font-size:0.8rem;color:var(--muted);margin-bottom:12px;">Shown on the voter login page as a friendly title. This is not used for security — use Organization ID above for that.</p>
+        <div class="field"><label>Organisation / Event Name</label><input id="org-name-input" type="text" placeholder="e.g. Greenfield Academy Elections 2026"/></div>
+        <button class="btn btn-primary" onclick="saveOrgName()">💾 Save Name</button>
+      </div>
+      <div class="card">
+        <div class="card-title">🗳️ Voter App Phase</div>
+        <p style="font-size:0.8rem;color:var(--muted);margin-bottom:12px;">Controls what voters see when they open the app. Switch to Results once voting has closed.</p>
+        <div style="display:flex;gap:10px;margin-bottom:6px;">
+          <button class="btn btn-primary" id="phase-btn-voting" onclick="setPhase('voting')" style="margin-top:0">🗳️ Voting</button>
+          <button class="btn btn-secondary" id="phase-btn-results" onclick="setPhase('results')" style="margin-top:0">📊 Results</button>
+        </div>
+        <div style="font-size:0.78rem;color:var(--muted);margin-top:6px;">Current: <strong id="phase-current-label">—</strong></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Voting Deadline</div>
+        <div class="field"><label>Deadline (date &amp; time)</label><input id="deadline-input" type="dat  .copy-id-btn:active { background: var(--input); }
+  .topbar-vid-copy { background: none; border: none; color: var(--accent); cursor: pointer; font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; margin-left: 4px; vertical-align: middle; }
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loading-overlay">
+  <div class="spinner"></div>
+  <div class="loading-text">Connecting to database…</div>
+</div>
+
+<!-- LOGIN SCREEN -->
+<div id="screen-login" class="screen">
+  <div class="login-hero">
+    <div class="emoji">🔐</div>
+    <div class="org" id="org-name-hero">Voting System</div>
+    <h1>Admin Login</h1>
+    <div class="tagline">Manage the election.</div>
+  </div>
+  <div class="content">
+    <div class="card">
+      <div class="card-title">Admin Access</div>
+      <div class="field"><label>Admin Password</label><input id="admin-pw" type="password" placeholder="Enter admin password"/></div>
+      <button class="btn btn-primary" onclick="adminLogin()">🔐 Admin Login</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN SCREEN -->
+<div id="screen-admin" class="screen">
+  <div class="topbar">
+    <div class="topbar-title">🔐 Admin Dashboard</div>
+    <button class="btn btn-sm btn-danger" onclick="logout()">Logout</button>
+  </div>
+  <div class="tabs">
+    <div class="tab active" onclick="adminTab('results',this)">📊 Results</div>
+    <div class="tab" onclick="adminTab('candidates',this)">🧑 Candidates</div>
+    <div class="tab" onclick="adminTab('voters',this)">🗳️ Voters</div>
+    <div class="tab" onclick="adminTab('whitelist',this)">👥 Add Voters</div>
+    <div class="tab" onclick="adminTab('lookup',this)">🔍 ID Lookup</div>
+    <div class="tab" onclick="adminTab('log',this)">📋 Log</div>
+    <div class="tab" onclick="adminTab('settings',this)">⚙️ Settings</div>
+  </div>
+  <div class="content">
+    <div id="tab-results" class="tab-content active"></div>
+
+    <div id="tab-candidates" class="tab-content">
+      <div class="card">
+        <div class="card-title">Add Candidate</div>
+        <div class="field"><label>Full Name</label><input id="c-name" type="text" placeholder="e.g. Sarah Johnson"/></div>
+        <div class="field">
+          <label>Category / Position</label>
+          <input id="c-pos" type="text" placeholder="e.g. President, Deputy President, Secretary"/>
+          <div class="field-hint">Candidates in the same category compete against each other. Voters vote once per category.</div>
+        </div>
+        <div class="field"><label>Bio (optional)</label><textarea id="c-bio" placeholder="Short description..."></textarea></div>
+        <div class="field">
+          <label>Photo (optional)</label>
+          <input id="c-photo" type="file" accept="image/*" onchange="previewCandidatePhoto(event)"/>
+          <div class="field-hint">A clear headshot works best. Image is resized automatically.</div>
+          <img id="c-photo-preview" style="display:none;margin-top:10px;width:80px;height:80px;border-radius:50%;object-fit:cover;border:2px solid var(--border)"/>
+        </div>
+        <button class="btn btn-primary" onclick="addCandidate()">➕ Add Candidate</button>
+      </div>
+      <div class="card">
+        <div class="card-title">All Candidates</div>
+        <div id="candidates-list"></div>
+      </div>
+    </div>
+
+    <div id="tab-voters" class="tab-content">
+      <div class="card">
+        <div class="card-title">Registered Voters</div>
+        <p style="font-size:0.8rem;color:var(--muted);margin-bottom:12px;">Voters log in with the Organization ID plus their National ID number — no separate password required.</p>
+        <div id="voters-list"></div>
+      </div>
+    </div>
+
+    <!-- Add Voters tab -->
+    <div id="tab-whitelist" class="tab-content">
+      <div class="card">
+        <div class="card-title">📤 Upload Voters (CSV)</div>
+        <p style="font-size:0.8rem;color:var(--muted);margin-bottom:12px;">CSV needs a <code>name</code> column and a <code>national_id</code> column. A header row is optional. National IDs already in use, or repeated within the file, are skipped automatically.</p>
+        <div class="field">
+          <label>CSV File</label>
+          <input id="wl-csv-input" type="file" accept=".csv,text/csv" onchange="handleVotersCSV(event)"/>
+          <div class="field-hint">Example row: <code>Jane Doe,12345678</code></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">➕ Add Single Voter</div>
+        <div class="field"><label>Full Name</label><input id="wl-name" type="text" placeholder="e.g. Jane Doe"/></div>
+        <div class="field">
+          <label>National ID No.</label>
+          <input id="wl-nid" type="text" placeholder="e.g. 12345678"/>
+        </div>
+        <button class="btn btn-primary" onclick="addWhitelistEntry()">➕ Add Voter</button>
+      </div>
+      <div class="card">
+        <div class="card-title">Provisioned Voters (<span id="whitelist-count">0</span>)</div>
+        <p style="font-size:0.8rem;color:var(--muted);margin-bottom:12px;">These are all the voters added so far. Removing someone here removes their account entirely.</p>
+        <div id="whitelist-list"></div>
+      </div>
+    </div>
+
+    <!-- ID Lookup tab -->
+    <div id="tab-lookup" class="tab-content">
+      <div class="card">
+        <div class="card-title">🔍 National ID Lookup</div>
+        <p style="font-size:0.8rem;color:var(--muted);margin-bottom:14px;">Search by National ID number or name.</p>
+        <div class="field">
+          <label>Search by National ID No.</label>
+          <input id="lookup-nid" type="text" placeholder="Enter the voter's National ID number"/>
+        </div>
+        <div class="field">
+          <label>— or — Search by Name</label>
+          <input id="lookup-name" type="text" placeholder="Enter voter's full name or part of it"/>
+        </div>
+        <button class="btn btn-primary" onclick="lookupVoter()">🔍 Search</button>
+        <div id="lookup-result"></div>
+      </div>
+    </div>
+
+    <div id="tab-log" class="tab-content">
+      <div class="card">
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+          <span>Activity Log</span>
+          <button class="btn btn-sm btn-danger" onclick="clearLogs()" style="font-size:0.75rem">🗑️ Clear Logs</button>
+        </div>
+        <div id="log-list"></div>
+      </div>
+    </div>
+
+    <div id="tab-settings" class="tab-content">
+      <div class="card">
+        <div class="card-title">🏢 Organization ID (Login Gate)</div>
+        <p style="font-size:0.8rem;color:var(--muted);margin-bottom:12px;">Voters must enter this exact ID, along with their National ID number, to log in. Share it with your voters separately from their individual National ID numbers.</p>
+        <div class="field"><label>Organization ID</label><input id="org-id-input" type="text" placeholder="e.g. GFA2026"/></div>
+        <button class="btn btn-primary" onclick="saveOrgId()">💾 Save Organization ID</button>
+      </div>
+      <div class="card">
+        <div class="card-title">🏷️ Organisation Name (Display Only)</div>
+        <p style="font-size:0.8rem;color:var(--muted);margin-bottom:12px;">Shown on the voter login page as a friendly title. This is not used for security — use Organization ID above for that.</p>
+        <div class="field"><label>Organisation / Event Name</label><input id="org-name-input" type="text" placeholder="e.g. Greenfield Academy Elections 2026"/></div>
+        <button class="btn btn-primary" onclick="saveOrgName()">💾 Save Name</button>
+      </div>
+      <div class="card">
+        <div class="card-title">🗳️ Voter App Phase</div>
+        <p style="font-size:0.8rem;color:var(--muted);margin-bottom:12px;">Controls what voters see when they open the app. Switch to Results once voting has closed.</p>
+        <div style="display:flex;gap:10px;margin-bottom:6px;">
+          <button class="btn btn-primary" id="phase-btn-voting" onclick="setPhase('voting')" style="margin-top:0">🗳️ Voting</button>
+          <button class="btn btn-secondary" id="phase-btn-results" onclick="setPhase('results')" style="margin-top:0">📊 Results</button>
+        </div>
+        <div style="font-size:0.78rem;color:var(--muted);margin-top:6px;">Current: <strong id="phase-current-label">—</strong></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Voting Deadline</div>
+        <div class="field"><label>Deadline (date &amp; time)</label><input id="deadline-input" type="dat  .results-cat-title { font-size: 0.75rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent2); margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+  .vote-progress { display: flex; align-items: center; gap: 10px; padding: 8px 14px; background: var(--surface); border-radius: 8px; margin-bottom: 16px; }
+  .vote-progress-text { font-size: 0.82rem; color: var(--muted); flex: 1; }
+  .vote-progress-count { font-size: 0.85rem; font-weight: 800; color: var(--accent); }
+  .copy-id-btn { background: var(--surface); border: 1px solid var(--accent); color: var(--accent); border-radius: 8px; padding: 7px 16px; font-size: 0.82rem; font-weight: 700; cursor: pointer; margin-top: 10px; transition: background 0.15s; display: inline-flex; align-items: center; gap: 6px; }
+  .copy-id-btn:active { background: var(--input); }
+  .topbar-vid-copy { background: none; border: none; color: var(--accent); cursor: pointer; font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; margin-left: 4px; vertical-align: middle; }
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loading-overlay">
+  <div class="spinner"></div>
+  <div class="loading-text">Connecting to database…</div>
+</div>
+
+<!-- LOGIN SCREEN -->
+<div id="screen-login" class="screen">
+  <div class="login-hero">
+    <div class="emoji">🔐</div>
+    <div class="org" id="org-name-hero">Voting System</div>
+    <h1>Admin Login</h1>
+    <div class="tagline">Manage the election.</div>
+  </div>
+  <div class="content">
+    <div class="card">
+      <div class="card-title">Admin Access</div>
+      <div class="field"><label>Admin Password</label><input id="admin-pw" type="password" placeholder="Enter admin password"/></div>
+      <button class="btn btn-primary" onclick="adminLogin()">🔐 Admin Login</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN SCREEN -->
+<div id="screen-admin" class="screen">
+  <div class="topbar">
+    <div class="topbar-title">🔐 Admin Dashboard</div>
+    <button class="btn btn-sm btn-danger" onclick="logout()">Logout</button>
+  </div>
+  <div class="tabs">
+    <div class="tab active" onclick="adminTab('results',this)">📊 Results</div>
+    <div class="tab" onclick="adminTab('candidates',this)">🧑 Candidates</div>
+    <div class="tab" onclick="adminTab('voters',this)">🗳️ Voters</div>
+    <div class="tab" onclick="adminTab('whitelist',this)">👥 Add Voters</div>
+    <div class="tab" onclick="adminTab('lookup',this)">🔍 ID Lookup</div>
+    <div class="tab" onclick="adminTab('log',this)">📋 Log</div>
+    <div class="tab" onclick="adminTab('settings',this)">⚙️ Settings</div>
+  </div>
+  <div class="content">
+    <div id="tab-results" class="tab-content active"></div>
+
+    <div id="tab-candidates" class="tab-content">
+      <div class="card">
+        <div class="card-title">Add Candidate</div>
+        <div class="field"><label>Full Name</label><input id="c-name" type="text" placeholder="e.g. Sarah Johnson"/></div>
+        <div class="field">
+          <label>Category / Position</label>
+          <input id="c-pos" type="text" placeholder="e.g. President, Deputy President, Secretary"/>
+          <div class="field-hint">Candidates in the same category compete against each other. Voters vote once per category.</div>
+        </div>
+        <div class="field"><label>Bio (optional)</label><textarea id="c-bio" placeholder="Short description..."></textarea></div>
+        <div class="field">
+          <label>Photo (optional)</label>
+          <input id="c-photo" type="file" accept="image/*" onchange="previewCandidatePhoto(event)"/>
+          <div class="field-hint">A clear headshot works best. Image is resized automatically.</div>
+          <img id="c-photo-preview" style="display:none;margin-top:10px;width:80px;height:80px;border-radius:50%;object-fit:cover;border:2px solid var(--border)"/>
+        </div>
+        <button class="btn btn-primary" onclick="addCandidate()">➕ Add Candidate</button>
+      </div>
+      <div class="card">
+        <div class="card-title">All Candidates</div>
+        <div id="candidates-list"></div>
+      </div>
+    </div>
+
+    <div id="tab-voters" class="tab-content">
+      <div class="card">
+        <div class="card-title">Registered Voters</div>
         <p style="font-size:0.8rem;color:var(--muted);margin-bottom:12px;">Voters log in with the Organization ID plus their National ID number and password. By default, each voter's password is the same as their National ID number.</p>
         <div id="voters-list"></div>
       </div>
